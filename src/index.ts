@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import check from "./check.js";
-import reset from "./reset.js";
+import check from "./api/check";
+import reset from "./api/reset";
 
 const app = new Hono();
 

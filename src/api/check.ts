@@ -1,9 +1,8 @@
 import { Hono } from "hono";
-import { handle } from "hono/vercel";
-import { createRedis, EventLogger } from "../lib/redis.js";
+import { requireApiSecret } from "../lib/middleware.js";
 import { createNetatmoClient } from "../lib/netatmo.js";
 import { createQStashClient } from "../lib/qstash.js";
-import { requireApiSecret } from "../lib/middleware.js";
+import { createRedis, EventLogger } from "../lib/redis.js";
 import type { ResetPayload } from "../types.js";
 
 const OVERAGE_THRESHOLD = 1.0; // °C above setpoint to trigger reset
@@ -134,4 +133,4 @@ app.get("/check", async (c) => {
   }
 });
 
-export const GET = handle(app);
+export default app;

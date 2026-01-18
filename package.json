@@ -7,13 +7,6 @@
     "dev": "vercel dev",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": [
-    "netatmo",
-    "thermostat",
-    "vercel",
-    "hono"
-  ],
-  "author": "",
   "license": "MIT",
   "dependencies": {
     "@upstash/qstash": "^2.8.4",

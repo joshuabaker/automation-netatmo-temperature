@@ -1,8 +1,7 @@
 import { Hono } from "hono";
-import { handle } from "hono/vercel";
-import { createRedis, EventLogger } from "../lib/redis.js";
 import { createNetatmoClient } from "../lib/netatmo.js";
 import { createQStashClient } from "../lib/qstash.js";
+import { createRedis, EventLogger } from "../lib/redis.js";
 import type { ResetPayload } from "../types.js";
 
 const app = new Hono();
@@ -77,4 +76,4 @@ app.post("/reset", async (c) => {
   }
 });
 
-export const POST = handle(app);
+export default app;

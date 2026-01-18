@@ -2,7 +2,6 @@
   "name": "automation-netatmo-temperature",
   "version": "1.0.0",
   "description": "Netatmo thermostat temperature monitor - workaround for relay firmware bug",
-  "type": "module",
   "scripts": {
     "dev": "vercel dev",
     "typecheck": "tsc --noEmit"

@@ -4,7 +4,7 @@ A serverless Vercel application that monitors Netatmo thermostats and works arou
 
 ## How It Works
 
-1. A cron job runs every 10 minutes via Vercel Cron
+1. An external cron service (e.g., [cron-job.org](https://cron-job.org)) calls `/check` every 10 minutes
 2. The app auto-discovers all thermostats across all homes linked to your account
 3. For each thermostat, it checks if the temperature exceeds the setpoint by more than 1.0°C
 4. If an overage is detected:
@@ -20,6 +20,7 @@ A serverless Vercel application that monitors Netatmo thermostats and works arou
 - Upstash Redis database
 - Upstash QStash instance
 - Vercel account
+- External cron service (e.g., [cron-job.org](https://cron-job.org))
 
 ## Setup
 
@@ -49,7 +50,7 @@ Set these in your Vercel project settings:
 
 | Variable | Description |
 |----------|-------------|
-| `CRON_SECRET` | Auto-configured by Vercel for cron authentication |
+| `API_SECRET` | Secret for authenticating cron requests (generate with `openssl rand -hex 32`) |
 | `NETATMO_CLIENT_ID` | From Netatmo dev portal |
 | `NETATMO_CLIENT_SECRET` | From Netatmo dev portal |
 | `NETATMO_REFRESH_TOKEN` | From Netatmo OAuth flow |
@@ -60,11 +61,20 @@ Set these in your Vercel project settings:
 | `QSTASH_CURRENT_SIGNING_KEY` | From Upstash console |
 | `QSTASH_NEXT_SIGNING_KEY` | From Upstash console |
 
+### 5. Set Up External Cron
+
+1. Create a free account at [cron-job.org](https://cron-job.org)
+2. Create a new cron job:
+   - **URL:** `https://your-app.vercel.app/check`
+   - **Schedule:** Every 10 minutes (`*/10 * * * *`)
+   - **Request method:** GET
+   - **Headers:** `Authorization: Bearer YOUR_API_SECRET`
+
 ## API Endpoints
 
 ### `GET /check`
 
-Called by Vercel Cron every 10 minutes. Auto-discovers all thermostats and checks for overages. Requires `CRON_SECRET` authentication.
+Checks all thermostats for temperature overages. Requires `Authorization: Bearer <API_SECRET>` header.
 
 ### `POST /reset`
 
@@ -79,19 +89,6 @@ Health check endpoint (no authentication required).
 ### Temperature Threshold
 
 The default threshold is 1.0°C above setpoint. To change it, modify `OVERAGE_THRESHOLD` in `src/api/check.ts`.
-
-### Cron Schedule
-
-The default schedule is every 10 minutes. To change it, modify the `schedule` in `vercel.json`:
-
-```json
-{
-  "crons": [{
-    "path": "/check",
-    "schedule": "*/15 * * * *"
-  }]
-}
-```
 
 ### Reset Delay
 
@@ -122,7 +119,7 @@ pnpm dev
 To test the `/check` endpoint locally:
 
 ```bash
-curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/check
+curl -H "Authorization: Bearer $API_SECRET" http://localhost:3000/check
 ```
 
 Note: For QStash callbacks to work locally, expose your local server via ngrok or similar and set `VERCEL_URL` accordingly.

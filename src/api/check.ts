@@ -3,21 +3,18 @@ import { handle } from "hono/vercel";
 import { createRedis, EventLogger } from "../lib/redis.js";
 import { createNetatmoClient } from "../lib/netatmo.js";
 import { createQStashClient } from "../lib/qstash.js";
-import { requireCronSecret } from "../lib/middleware.js";
+import { requireApiSecret } from "../lib/middleware.js";
 import type { ResetPayload } from "../types.js";
 
-// Temperature threshold: trigger reset if current temp exceeds setpoint by this much
-const OVERAGE_THRESHOLD = 1.0; // °C
+const OVERAGE_THRESHOLD = 1.0; // °C above setpoint to trigger reset
 
 const app = new Hono();
 
-// Health check - no auth required
 app.get("/health", (c) => {
   return c.json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
-// Protected route - requires CRON_SECRET
-app.use("/check", requireCronSecret);
+app.use("/check", requireApiSecret);
 
 app.get("/check", async (c) => {
   console.log("[Check] Starting temperature check for all thermostats");
@@ -28,7 +25,6 @@ app.get("/check", async (c) => {
     const eventLogger = new EventLogger(redis);
     const qstash = createQStashClient();
 
-    // Discover all thermostats
     const thermostats = await netatmo.getAllThermostats();
 
     if (thermostats.length === 0) {

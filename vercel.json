@@ -4,11 +4,5 @@
     { "source": "/check", "destination": "/src/api/check" },
     { "source": "/health", "destination": "/src/api/check" },
     { "source": "/reset", "destination": "/src/api/reset" }
-  ],
-  "crons": [
-    {
-      "path": "/check",
-      "schedule": "*/10 * * * *"
-    }
   ]
 }

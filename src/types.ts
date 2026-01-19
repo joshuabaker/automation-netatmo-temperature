@@ -112,14 +112,36 @@ export interface OverageEvent {
   roomName?: string;
 }
 
-// QStash callback payload
+// Room measure types (historical data)
 
-export interface ResetPayload {
-  homeId: string;
-  roomId: string;
-  originalSetpoint: number;
-  homeName?: string;
-  roomName?: string;
+export interface RoomMeasureData {
+  beg_time: number; // Start timestamp of the data series
+  step_time: number; // Interval between data points in seconds
+  value: Array<[number, number]>; // [temperature, setpoint] pairs
+}
+
+export interface RoomMeasureResponse {
+  status: string;
+  time_exec: number;
+  time_server: number;
+  body: RoomMeasureData[];
+}
+
+// Parsed measurement point for easier use
+export interface MeasurePoint {
+  timestamp: number;
+  temperature: number;
+  setpoint: number;
+}
+
+// Drift detection result
+export interface DriftDetection {
+  isDrifting: boolean;
+  setpointDropTime?: number; // When setpoint dropped
+  tempAtDrop?: number; // Temperature when setpoint dropped
+  currentTemp?: number; // Current temperature
+  tempRise?: number; // How much temp has risen since drop
+  minutesSinceDrop?: number;
 }
 
 // Thermostat info for discovery
@@ -133,4 +155,5 @@ export interface ThermostatInfo {
   setpoint: number;
   mode: string;
   reachable: boolean;
+  serverTime: number; // Netatmo server Unix timestamp for clock sync
 }

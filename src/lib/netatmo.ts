@@ -5,6 +5,9 @@ import type {
   NetatmoHomesDataResponse,
   NetatmoRoom,
   ThermostatInfo,
+  RoomMeasureResponse,
+  MeasurePoint,
+  DriftDetection,
 } from "../types.js";
 
 const NETATMO_API_BASE = "https://api.netatmo.com";
@@ -200,6 +203,7 @@ export class NetatmoClient {
 
       try {
         const homeStatus = await this.getHomeStatus(home.id);
+        const serverTime = parseInt(homeStatus.time_server, 10);
 
         for (const room of homeStatus.body.home.rooms) {
           const roomInfo = home.rooms?.find((r) => r.id === room.id);
@@ -214,6 +218,7 @@ export class NetatmoClient {
             setpoint: room.therm_setpoint_temperature,
             mode: room.therm_setpoint_mode,
             reachable: room.reachable,
+            serverTime,
           });
         }
       } catch (error) {
@@ -264,10 +269,14 @@ export class NetatmoClient {
 
   /**
    * Set room to max temperature (30°C) - triggers heating
+   * Auto-expires after 60 seconds as a failsafe
+   * @param serverTime - Optional Netatmo server time for clock sync
    */
-  async setRoomToMax(homeId: string, roomId: string): Promise<void> {
-    await this.setRoomThermPoint(homeId, roomId, "max");
-    console.log(`[Netatmo] Room ${roomId} set to MAX mode`);
+  async setRoomToMax(homeId: string, roomId: string, serverTime?: number): Promise<void> {
+    const baseTime = serverTime ?? Math.floor(Date.now() / 1000);
+    const endtime = baseTime + 60; // 1 minute from base time
+    await this.setRoomThermPoint(homeId, roomId, "max", undefined, endtime);
+    console.log(`[Netatmo] Room ${roomId} set to MAX mode (expires in 60s)`);
   }
 
   /**
@@ -276,6 +285,121 @@ export class NetatmoClient {
   async setRoomToHome(homeId: string, roomId: string): Promise<void> {
     await this.setRoomThermPoint(homeId, roomId, "home");
     console.log(`[Netatmo] Room ${roomId} set to HOME mode`);
+  }
+
+  /**
+   * Get historical temperature and setpoint data for a room
+   * @param scale - Data granularity: "30min", "1hour", "3hours", "1day"
+   * @param dateBegin - Start timestamp (Unix seconds)
+   * @param dateEnd - End timestamp (Unix seconds), or "last" for most recent
+   */
+  async getRoomMeasure(
+    homeId: string,
+    roomId: string,
+    scale: string = "30min",
+    dateBegin?: number,
+    dateEnd?: number
+  ): Promise<RoomMeasureResponse> {
+    console.log(`[Netatmo] Getting room measure for ${roomId} (scale: ${scale})`);
+
+    const params: Record<string, string> = {
+      home_id: homeId,
+      room_id: roomId,
+      scale,
+      type: "temperature,sp_temperature",
+    };
+
+    if (dateBegin !== undefined) {
+      params.date_begin = dateBegin.toString();
+    }
+    if (dateEnd !== undefined) {
+      params.date_end = dateEnd.toString();
+    }
+
+    return this.apiRequest<RoomMeasureResponse>("/getroommeasure", {
+      method: "GET",
+      params,
+    });
+  }
+
+  /**
+   * Parse room measure response into individual data points
+   */
+  parseMeasureData(response: RoomMeasureResponse): MeasurePoint[] {
+    const points: MeasurePoint[] = [];
+
+    for (const series of response.body) {
+      const { beg_time, step_time, value } = series;
+
+      for (let i = 0; i < value.length; i++) {
+        const [temperature, setpoint] = value[i];
+        points.push({
+          timestamp: beg_time + i * step_time,
+          temperature,
+          setpoint,
+        });
+      }
+    }
+
+    return points.sort((a, b) => a.timestamp - b.timestamp);
+  }
+
+  /**
+   * Detect if temperature is drifting up while setpoint has dropped
+   * This indicates the thermostat failed to turn off heating
+   *
+   * @param points - Historical measure points
+   * @param serverTime - Current server time for reference
+   * @param minMinutesSinceDrop - Minimum minutes since setpoint drop to consider (default: 10)
+   * @param minTempRise - Minimum temperature rise to trigger (default: 0.5°C)
+   */
+  detectDrift(
+    points: MeasurePoint[],
+    serverTime: number,
+    minMinutesSinceDrop: number = 10,
+    minTempRise: number = 0.5
+  ): DriftDetection {
+    if (points.length < 2) {
+      return { isDrifting: false };
+    }
+
+    const minSecondsSinceDrop = minMinutesSinceDrop * 60;
+    const currentPoint = points[points.length - 1];
+
+    // Find the most recent setpoint drop
+    for (let i = points.length - 1; i > 0; i--) {
+      const prev = points[i - 1];
+      const curr = points[i];
+
+      // Check if setpoint dropped
+      if (curr.setpoint < prev.setpoint) {
+        const secondsSinceDrop = serverTime - curr.timestamp;
+        const minutesSinceDrop = secondsSinceDrop / 60;
+
+        // Only consider if enough time has passed
+        if (secondsSinceDrop >= minSecondsSinceDrop) {
+          const tempAtDrop = curr.temperature;
+          const tempRise = currentPoint.temperature - tempAtDrop;
+
+          // Temperature has risen since setpoint dropped - drift detected
+          if (tempRise >= minTempRise) {
+            return {
+              isDrifting: true,
+              setpointDropTime: curr.timestamp,
+              tempAtDrop,
+              currentTemp: currentPoint.temperature,
+              tempRise,
+              minutesSinceDrop: Math.round(minutesSinceDrop),
+            };
+          }
+        }
+
+        // Found the most recent drop, stop searching
+        break;
+      }
+    }
+
+    return { isDrifting: false };
   }
 }
 

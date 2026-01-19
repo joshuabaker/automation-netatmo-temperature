@@ -1,11 +1,6 @@
 {
   "name": "automation-netatmo-temperature",
-  "version": "1.0.0",
-  "description": "Netatmo thermostat temperature monitor - workaround for relay firmware bug",
-  "scripts": {
-    "dev": "vercel dev",
-    "typecheck": "tsc --noEmit"
-  },
+  "type": "module",
   "license": "MIT",
   "dependencies": {
     "@upstash/qstash": "^2.8.4",
@@ -14,10 +9,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.0.9",
-    "typescript": "^5.9.3",
-    "vercel": "^39.4.2"
-  },
-  "engines": {
-    "node": "24"
+    "tsx": "^4.7.1",
+    "typescript": "^5.9.3"
   }
 }

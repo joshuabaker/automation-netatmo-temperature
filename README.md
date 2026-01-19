@@ -16,6 +16,7 @@ A serverless Vercel application that monitors a Netatmo thermostat and works aro
 - Upstash Redis database
 - Vercel account
 - External cron service (e.g., [cron-job.org](https://cron-job.org))
+- (Optional) Pushover account for notifications
 
 ## Setup
 
@@ -50,6 +51,8 @@ Set these in your Vercel project settings:
 | `NETATMO_REFRESH_TOKEN` | From Netatmo OAuth flow |
 | `UPSTASH_REDIS_REST_URL` | From Upstash console |
 | `UPSTASH_REDIS_REST_TOKEN` | From Upstash console |
+| `PUSHOVER_USER` | (Optional) Your Pushover user/group key |
+| `PUSHOVER_TOKEN` | (Optional) Your Pushover application token |
 
 ### 5. Set Up External Cron
 
@@ -76,6 +79,16 @@ Returns:
 ### `GET /health`
 
 Health check endpoint (no authentication required).
+
+## Notifications
+
+If Pushover credentials are configured, you'll receive a push notification when MAX mode is triggered. To set this up:
+
+1. Create an account at [pushover.net](https://pushover.net)
+2. Create an application to get an API token
+3. Set `PUSHOVER_USER` and `PUSHOVER_TOKEN` environment variables
+
+If the variables are not set, notifications are silently skipped.
 
 ## Token Management
 

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { createNetatmoClient } from "./lib/netatmo.js";
+import { sendPushoverNotification } from "./lib/pushover.js";
 import { createRedis, REDIS_KEYS } from "./lib/redis.js";
 import type { ThermostatReading } from "./types.js";
 
@@ -53,6 +54,10 @@ app.get("/check", async (c) => {
 
     if (currDiff > THRESHOLD && prevDiff > THRESHOLD) {
       await netatmo.setRoomToMax(homeId, roomId, serverTime);
+      await sendPushoverNotification(
+        "Heating MAX Triggered",
+        `Temperature ${temp}°C exceeded setpoint ${setpoint}°C by ${currDiff.toFixed(1)}°C`
+      );
       action = "triggered_max";
     }
 

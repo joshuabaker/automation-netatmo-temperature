@@ -96,64 +96,20 @@ export interface NetatmoHomesDataResponse {
   };
 }
 
-// Redis logging types
+// Thermostat status (simplified for single thermostat)
 
-export type OverageEventType = "overage_detected" | "reset_triggered" | "reset_completed";
-
-export interface OverageEvent {
-  type: OverageEventType;
-  currentTemp: number;
-  setpoint: number;
-  diff: number;
-  timestamp: number;
+export interface ThermostatStatus {
   homeId: string;
   roomId: string;
-  homeName?: string;
-  roomName?: string;
-}
-
-// Room measure types (historical data)
-
-export interface RoomMeasureData {
-  beg_time: number; // Start timestamp of the data series
-  step_time: number; // Interval between data points in seconds
-  value: Array<[number, number]>; // [temperature, setpoint] pairs
-}
-
-export interface RoomMeasureResponse {
-  status: string;
-  time_exec: number;
-  time_server: number;
-  body: RoomMeasureData[];
-}
-
-// Parsed measurement point for easier use
-export interface MeasurePoint {
-  timestamp: number;
-  temperature: number;
-  setpoint: number;
-}
-
-// Drift detection result
-export interface DriftDetection {
-  isDrifting: boolean;
-  setpointDropTime?: number; // When setpoint dropped
-  tempAtDrop?: number; // Temperature when setpoint dropped
-  currentTemp?: number; // Current temperature
-  tempRise?: number; // How much temp has risen since drop
-  minutesSinceDrop?: number;
-}
-
-// Thermostat info for discovery
-
-export interface ThermostatInfo {
-  homeId: string;
-  homeName: string;
-  roomId: string;
-  roomName: string;
-  currentTemp: number;
+  temp: number;
   setpoint: number;
   mode: string;
-  reachable: boolean;
-  serverTime: number; // Netatmo server Unix timestamp for clock sync
+  serverTime: number;
+}
+
+// Redis reading type
+
+export interface ThermostatReading {
+  temp: number;
+  setpoint: number;
 }

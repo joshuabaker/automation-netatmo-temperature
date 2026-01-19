@@ -3,7 +3,6 @@
   "type": "module",
   "license": "MIT",
   "dependencies": {
-    "@upstash/qstash": "^2.8.4",
     "@upstash/redis": "^1.36.1",
     "hono": "^4.11.4"
   },

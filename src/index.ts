@@ -4,7 +4,7 @@ import reset from "./api/reset.js";
 
 const app = new Hono();
 
-app.route("/check", check);
-app.route("/reset", reset);
+app.route("/", check);
+app.route("/", reset);
 
 export default app;

@@ -51,7 +51,10 @@ export class NetatmoClient {
     });
 
     if (tokenResponse.refresh_token) {
-      await this.redis.set(REDIS_KEYS.REFRESH_TOKEN, tokenResponse.refresh_token);
+      await this.redis.set(
+        REDIS_KEYS.REFRESH_TOKEN,
+        tokenResponse.refresh_token
+      );
     }
 
     return tokenResponse.access_token;

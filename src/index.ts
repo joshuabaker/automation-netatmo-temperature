@@ -38,7 +38,6 @@ app.get("/check", async (c) => {
     // If MAX mode is on, toggle off, store reading, and exit
     if (mode === "max") {
       await netatmo.setRoomToHome(homeId, roomId);
-      await redis.set(REDIS_KEYS.READING, { temp, setpoint });
       return c.json({
         action: "reset_max",
         temp,

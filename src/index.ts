@@ -52,7 +52,7 @@ app.get("/check", async (c) => {
     let action = "normal";
 
     if (currDiff > THRESHOLD && prevDiff > THRESHOLD) {
-      await netatmo.setRoomToMax(homeId, roomId, serverTime);
+      // await netatmo.setRoomToMax(homeId, roomId, serverTime);
       await sendPushoverNotification(
         "Heating MAX Triggered",
         `Temperature ${temp}°C exceeded setpoint ${setpoint}°C by ${currDiff.toFixed(

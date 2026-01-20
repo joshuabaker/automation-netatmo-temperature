@@ -51,7 +51,12 @@ app.get("/check", async (c) => {
 
     let action = "normal";
 
-    if (currDiff > THRESHOLD && prevDiff > THRESHOLD) {
+    if (
+      prevReading && // A previous reading exists
+      currDiff > THRESHOLD && // Current temperature is greater than setpoint
+      prevDiff > THRESHOLD && // Previous temperature is greater than setpoint
+      temp > prevReading.temp // Current temperature is greater than previous temperature (indicates heating is on)
+    ) {
       // await netatmo.setRoomToMax(homeId, roomId, serverTime);
       await sendPushoverNotification(
         "Heating MAX Triggered",

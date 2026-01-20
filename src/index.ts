@@ -4,7 +4,7 @@ import { sendPushoverNotification } from "./lib/pushover.js";
 import { createRedis, REDIS_KEYS } from "./lib/redis.js";
 import type { ThermostatReading } from "./types.js";
 
-const THRESHOLD = 1.0; // Threshold for temperature difference to trigger MAX mode
+const THRESHOLD = 0.5; // Threshold for temperature difference to trigger MAX mode
 const MIN_TEMP_FOR_MAX = 22.0; // Minimum temperature to activate MAX mode
 
 const app = new Hono();

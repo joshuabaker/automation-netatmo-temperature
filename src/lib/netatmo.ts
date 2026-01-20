@@ -208,7 +208,7 @@ export class NetatmoClient {
     roomId: string,
     serverTime: number
   ): Promise<void> {
-    const endtime = serverTime + 60;
+    const endtime = serverTime + 30;
     await this.setRoomThermPoint(homeId, roomId, "max", endtime);
   }
 

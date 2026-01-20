@@ -56,7 +56,9 @@ app.get("/check", async (c) => {
       await netatmo.setRoomToMax(homeId, roomId, serverTime);
       await sendPushoverNotification(
         "Heating MAX Triggered",
-        `Temperature ${temp}°C exceeded setpoint ${setpoint}°C by ${currDiff.toFixed(1)}°C`
+        `Temperature ${temp}°C exceeded setpoint ${setpoint}°C by ${currDiff.toFixed(
+          1
+        )}°C`
       );
       action = "triggered_max";
     }

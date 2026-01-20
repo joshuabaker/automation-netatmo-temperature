@@ -43,16 +43,16 @@ vercel
 
 Set these in your Vercel project settings:
 
-| Variable | Description |
-|----------|-------------|
-| `API_SECRET` | Secret for authenticating cron requests (generate with `openssl rand -hex 32`) |
-| `NETATMO_CLIENT_ID` | From Netatmo dev portal |
-| `NETATMO_CLIENT_SECRET` | From Netatmo dev portal |
-| `NETATMO_REFRESH_TOKEN` | From Netatmo OAuth flow |
-| `UPSTASH_REDIS_REST_URL` | From Upstash console |
-| `UPSTASH_REDIS_REST_TOKEN` | From Upstash console |
-| `PUSHOVER_USER` | (Optional) Your Pushover user/group key |
-| `PUSHOVER_TOKEN` | (Optional) Your Pushover application token |
+| Variable                   | Description                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| `API_SECRET`               | Secret for authenticating cron requests (generate with `openssl rand -hex 32`) |
+| `NETATMO_CLIENT_ID`        | From Netatmo dev portal                                                        |
+| `NETATMO_CLIENT_SECRET`    | From Netatmo dev portal                                                        |
+| `NETATMO_REFRESH_TOKEN`    | From Netatmo OAuth flow                                                        |
+| `UPSTASH_REDIS_REST_URL`   | From Upstash console                                                           |
+| `UPSTASH_REDIS_REST_TOKEN` | From Upstash console                                                           |
+| `PUSHOVER_USER`            | (Optional) Your Pushover user/group key                                        |
+| `PUSHOVER_TOKEN`           | (Optional) Your Pushover application token                                     |
 
 ### 5. Set Up External Cron
 
@@ -70,6 +70,7 @@ Set these in your Vercel project settings:
 Checks the thermostat for temperature overages. Requires `Authorization: Bearer <API_SECRET>` header.
 
 Returns:
+
 - `action`: One of `normal`, `triggered_max`, or `reset_max`
 - `temp`: Current temperature
 - `setpoint`: Current setpoint

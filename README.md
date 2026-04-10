@@ -7,7 +7,7 @@ A serverless Vercel application that monitors a Netatmo thermostat and works aro
 1. An external cron service (e.g., [cron-job.org](https://cron-job.org)) calls `/check` every 5 minutes
 2. The app gets the current temperature and setpoint from the first thermostat
 3. If MAX mode is active, it resets to home/schedule mode and exits
-4. If the temperature exceeds the setpoint by more than 1°C for two consecutive checks, it triggers MAX mode for 1 minute to reset the relay
+4. If the setpoint is above 18°C (i.e. heating is actively wanted, not eco/frost mode) and the temperature exceeds the setpoint by more than 0.5°C for two consecutive checks, it triggers MAX mode for 30 seconds to reset the relay
 
 ## Prerequisites
 
@@ -53,6 +53,7 @@ Set these in your Vercel project settings:
 | `UPSTASH_REDIS_REST_TOKEN` | From Upstash console                                                           |
 | `PUSHOVER_USER`            | (Optional) Your Pushover user/group key                                        |
 | `PUSHOVER_TOKEN`           | (Optional) Your Pushover application token                                     |
+| `ENABLED`                  | (Optional) Set to `"false"` to disable MAX mode triggering entirely            |
 
 ### 5. Set Up External Cron
 

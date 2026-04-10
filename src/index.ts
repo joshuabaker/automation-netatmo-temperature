@@ -6,6 +6,7 @@ import type { ThermostatReading } from "./types.js";
 
 const THRESHOLD = 0.5; // Threshold for temperature difference to trigger MAX mode
 const MIN_TEMP_FOR_MAX = 22.0; // Minimum temperature to activate MAX mode
+const MIN_SETPOINT_FOR_MAX = 18.0; // Minimum setpoint to activate MAX mode (skip in eco/summer)
 
 const app = new Hono();
 
@@ -23,6 +24,10 @@ app.get("/check", async (c) => {
 
   if (authHeader !== `Bearer ${apiSecret}`) {
     return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  if (process.env.ENABLED === "false") {
+    return c.json({ action: "disabled" });
   }
 
   try {
@@ -53,6 +58,7 @@ app.get("/check", async (c) => {
     let action = "normal";
 
     if (
+      setpoint > MIN_SETPOINT_FOR_MAX && // Setpoint indicates heating is actively wanted (not eco/summer)
       temp > MIN_TEMP_FOR_MAX && // Current temperature is greater than minimum temperature to trigger MAX mode
       prevDiff > THRESHOLD && // Previous temperature is greater than previous setpoint
       currDiff > THRESHOLD && // Current temperature is greater than current setpoint

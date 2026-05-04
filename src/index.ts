@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { createNetatmoClient } from "./lib/netatmo.js";
+import { TransientApiError } from "./lib/fetch.js";
 import { sendPushoverNotification } from "./lib/pushover.js";
 import { createRedis, REDIS_KEYS } from "./lib/redis.js";
 import type { ThermostatReading } from "./types.js";
@@ -86,12 +87,15 @@ app.get("/check", async (c) => {
       prevDiff: prevReading ? prevDiff : null,
     });
   } catch (error) {
+    const isTransient = error instanceof TransientApiError;
     return c.json(
       {
-        error: "Failed to check temperature",
+        error: isTransient
+          ? "Netatmo API temporarily unavailable"
+          : "Failed to check temperature",
         details: error instanceof Error ? error.message : String(error),
       },
-      500
+      isTransient ? 502 : 500
     );
   }
 });

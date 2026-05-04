@@ -1,5 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { REDIS_KEYS, ACCESS_TOKEN_TTL } from "./redis.js";
+import { fetchWithRetry } from "./fetch.js";
 import type {
   NetatmoTokenResponse,
   NetatmoHomeStatusResponse,
@@ -73,7 +74,7 @@ export class NetatmoClient {
       client_secret: this.config.clientSecret,
     });
 
-    const response = await fetch(`${NETATMO_API_BASE}/oauth2/token`, {
+    const response = await fetchWithRetry(`${NETATMO_API_BASE}/oauth2/token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -124,7 +125,7 @@ export class NetatmoClient {
       fetchOptions.body = new URLSearchParams(params).toString();
     }
 
-    const response = await fetch(url.toString(), fetchOptions);
+    const response = await fetchWithRetry(url.toString(), fetchOptions);
 
     if (!response.ok) {
       const errorText = await response.text();

@@ -70,7 +70,6 @@ Zero-cost, uses only what's already provisioned. On any `/check` failure:
 
 1. Structured `console.error` JSON line (`event: "check_failed"`) → Vercel runtime logs
 2. Last error + capped history (50) persisted in Redis → survives Vercel log retention, read via `/status`
-3. Pushover alert, rate-limited to one per hour via `SET NX EX` on `netatmo:error_alerted`
 
 Tracking never throws; every step is isolated so it can't turn a good run into a failure or mask the original error.
 
@@ -82,4 +81,3 @@ Tracking never throws; every step is isolated so it can't turn a good run into a
 - `netatmo:last_check` — Last successful check (`{ at, action, temp, setpoint }`)
 - `netatmo:last_error` — Last failed check (`{ at, status, name, message, stack }`)
 - `netatmo:errors` — List of the last 50 failed checks (newest first)
-- `netatmo:error_alerted` — Cooldown marker for failure alerts (TTL: 1 hour)

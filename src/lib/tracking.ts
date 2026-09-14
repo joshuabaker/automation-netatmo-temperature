@@ -1,13 +1,9 @@
 import type { Redis } from "@upstash/redis";
 import { REDIS_KEYS } from "./redis.js";
-import { sendPushoverNotification } from "./pushover.js";
 import type { CheckErrorRecord, CheckSuccessRecord } from "../types.js";
 
 // Keep the last N failures in Redis. 50 x ~500 bytes is negligible on the free tier.
 const ERROR_HISTORY_LIMIT = 50;
-
-// Only send one "check failed" push per hour so a persistent outage doesn't spam.
-const ERROR_ALERT_COOLDOWN_SECONDS = 60 * 60;
 
 // Truncate error text stored/sent so a huge upstream response body can't bloat Redis.
 const MAX_MESSAGE_LENGTH = 1000;
@@ -57,7 +53,6 @@ export async function recordCheckSuccess(
  * Record a failed /check run:
  *   1. Structured console.error (shows up in Vercel runtime logs)
  *   2. Persist last error + capped history in Redis (survives past Vercel log retention)
- *   3. Rate-limited Pushover alert (at most one per hour)
  *
  * Never throws and never blocks the error response from being returned; every step
  * is isolated so a Redis outage still leaves the console log, and vice versa.
@@ -92,28 +87,6 @@ export async function recordCheckError(
       JSON.stringify({
         event: "tracking_failed",
         stage: "persist_error",
-        error: serializeError(trackingError),
-      })
-    );
-  }
-
-  // 3. Notify, but only if no alert has gone out in the cooldown window.
-  try {
-    const acquired = await redis.set(REDIS_KEYS.ERROR_ALERTED, entry.at, {
-      nx: true,
-      ex: ERROR_ALERT_COOLDOWN_SECONDS,
-    });
-    if (acquired === "OK") {
-      await sendPushoverNotification(
-        `Netatmo check failed (${status})`,
-        truncate(`${entry.name}: ${entry.message}`, 500)
-      );
-    }
-  } catch (trackingError) {
-    console.error(
-      JSON.stringify({
-        event: "tracking_failed",
-        stage: "notify_error",
         error: serializeError(trackingError),
       })
     );

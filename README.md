@@ -97,17 +97,16 @@ curl -H "Authorization: Bearer $API_SECRET" https://your-app.vercel.app/status
 
 ## Error Tracking
 
-Every failed `/check` run is recorded in three places, using only services already required by the app:
+Every failed `/check` run is recorded in two places, using only services already required by the app:
 
 1. **Vercel runtime logs** — a structured JSON line (`"event":"check_failed"`) via `console.error`. Note that Vercel's Hobby plan only retains runtime logs for about an hour.
 2. **Redis** — the last error and a capped history of the last 50, so failures are still inspectable long after Vercel's logs have rolled over. Read them via `GET /status`.
-3. **Pushover** — a "Netatmo check failed" notification, rate-limited to one per hour so a sustained outage doesn't spam you. Skipped if Pushover isn't configured.
 
-Tracking is best-effort: if Redis or Pushover is itself unreachable, the original error is still returned to the caller and logged.
+Tracking is best-effort: if Redis is itself unreachable, the original error is still returned to the caller and logged.
 
 ## Notifications
 
-If Pushover credentials are configured, you'll receive a push notification when MAX mode is triggered, and when a `/check` run fails (at most once per hour). To set this up:
+If Pushover credentials are configured, you'll receive a push notification when MAX mode is triggered. To set this up:
 
 1. Create an account at [pushover.net](https://pushover.net)
 2. Create an application to get an API token

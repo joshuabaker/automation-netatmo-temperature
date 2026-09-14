@@ -7,7 +7,6 @@ export const REDIS_KEYS = {
   LAST_CHECK: "netatmo:last_check",
   LAST_ERROR: "netatmo:last_error",
   ERROR_HISTORY: "netatmo:errors",
-  ERROR_ALERTED: "netatmo:error_alerted",
 } as const;
 
 // Access token TTL - cache for ~2.7 hours (tokens expire in 3 hours)

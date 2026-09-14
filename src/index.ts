@@ -1,8 +1,15 @@
 import { Hono } from "hono";
+import { createMiddleware } from "hono/factory";
+import type { Redis } from "@upstash/redis";
 import { createNetatmoClient } from "./lib/netatmo.js";
 import { TransientApiError } from "./lib/fetch.js";
 import { sendPushoverNotification } from "./lib/pushover.js";
 import { createRedis, REDIS_KEYS } from "./lib/redis.js";
+import {
+  getTrackingStatus,
+  recordCheckError,
+  recordCheckSuccess,
+} from "./lib/tracking.js";
 import type { ThermostatReading } from "./types.js";
 
 const THRESHOLD = 0.5; // Threshold for temperature difference to trigger MAX mode
@@ -11,15 +18,17 @@ const MIN_SETPOINT_FOR_MAX = 18.0; // Minimum setpoint to activate MAX mode (ski
 
 const app = new Hono();
 
-app.get("/health", (c) => {
-  return c.json({ status: "healthy", timestamp: new Date().toISOString() });
-});
-
-app.get("/check", async (c) => {
+/**
+ * Bearer auth for endpoints the cron caller and the operator hit.
+ */
+const requireAuth = createMiddleware(async (c, next) => {
   const authHeader = c.req.header("Authorization");
   const apiSecret = process.env.API_SECRET;
 
   if (!apiSecret) {
+    console.error(
+      JSON.stringify({ event: "misconfigured", missing: "API_SECRET" })
+    );
     return c.json({ error: "Server misconfigured" }, 500);
   }
 
@@ -27,12 +36,43 @@ app.get("/check", async (c) => {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
+  await next();
+});
+
+app.get("/health", (c) => {
+  return c.json({ status: "healthy", timestamp: new Date().toISOString() });
+});
+
+app.get("/status", requireAuth, async (c) => {
+  try {
+    const redis = createRedis();
+    const status = await getTrackingStatus(redis);
+    return c.json({
+      enabled: process.env.ENABLED !== "false",
+      ...status,
+    });
+  } catch (error) {
+    return c.json(
+      {
+        error: "Failed to read status",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+app.get("/check", requireAuth, async (c) => {
   if (process.env.ENABLED === "false") {
     return c.json({ action: "disabled" });
   }
 
+  // Created outside the try so the catch can still persist the error if the
+  // failure happened after Redis was set up.
+  let redis: Redis | null = null;
+
   try {
-    const redis = createRedis();
+    redis = createRedis();
     const netatmo = createNetatmoClient(redis);
 
     // Get thermostat status (first home, first room)
@@ -45,6 +85,7 @@ app.get("/check", async (c) => {
     // If MAX mode is on, toggle off, store reading, and exit
     if (mode === "max") {
       await netatmo.setRoomToHome(homeId, roomId);
+      await recordCheckSuccess(redis, { action: "reset_max", temp, setpoint });
       return c.json({
         action: "reset_max",
         temp,
@@ -78,6 +119,7 @@ app.get("/check", async (c) => {
 
     // Always store the current reading for next check
     await redis.set(REDIS_KEYS.READING, { temp, setpoint });
+    await recordCheckSuccess(redis, { action, temp, setpoint });
 
     return c.json({
       action,
@@ -88,6 +130,10 @@ app.get("/check", async (c) => {
     });
   } catch (error) {
     const isTransient = error instanceof TransientApiError;
+    const status = isTransient ? 502 : 500;
+
+    await recordCheckError(redis, error, status);
+
     return c.json(
       {
         error: isTransient
@@ -95,7 +141,7 @@ app.get("/check", async (c) => {
           : "Failed to check temperature",
         details: error instanceof Error ? error.message : String(error),
       },
-      isTransient ? 502 : 500
+      status
     );
   }
 });

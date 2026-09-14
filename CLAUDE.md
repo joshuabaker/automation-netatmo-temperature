@@ -62,9 +62,22 @@ curl -H "Authorization: Bearer $API_SECRET" http://localhost:3000/check
 
 - `GET /health` — Health check (no auth)
 - `GET /check` — Main thermostat check (requires Bearer auth)
+- `GET /status` — Last successful check, last error, recent error history (requires Bearer auth)
+
+## Error Tracking (`src/lib/tracking.ts`)
+
+Zero-cost, uses only what's already provisioned. On any `/check` failure:
+
+1. Structured `console.error` JSON line (`event: "check_failed"`) → Vercel runtime logs
+2. Last error + capped history (50) persisted in Redis → survives Vercel log retention, read via `/status`
+
+Tracking never throws; every step is isolated so it can't turn a good run into a failure or mask the original error.
 
 ## Redis Keys
 
 - `netatmo:access_token` — Cached access token (TTL: ~2.7 hours)
 - `netatmo:refresh_token` — Current refresh token (persisted, auto-rotated)
 - `netatmo:reading` — Last thermostat reading (`{ temp, setpoint }`)
+- `netatmo:last_check` — Last successful check (`{ at, action, temp, setpoint }`)
+- `netatmo:last_error` — Last failed check (`{ at, status, name, message, stack }`)
+- `netatmo:errors` — List of the last 50 failed checks (newest first)

@@ -113,3 +113,20 @@ export interface ThermostatReading {
   temp: number;
   setpoint: number;
 }
+
+// Tracking types (see lib/tracking.ts)
+
+export interface CheckSuccessRecord {
+  at: string; // ISO timestamp
+  action: string;
+  temp: number;
+  setpoint: number;
+}
+
+export interface CheckErrorRecord {
+  at: string; // ISO timestamp
+  status: number; // HTTP status returned to the caller
+  name: string;
+  message: string;
+  stack?: string;
+}

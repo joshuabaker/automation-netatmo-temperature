@@ -9,12 +9,14 @@ import {
   getTrackingStatus,
   recordCheckError,
   recordCheckSuccess,
+  recordTransientFailure,
 } from "./lib/tracking.js";
 import type { ThermostatReading } from "./types.js";
 
 const THRESHOLD = 0.5; // Threshold for temperature difference to trigger MAX mode
 const MIN_TEMP_FOR_MAX = 22.0; // Minimum temperature to activate MAX mode
 const MIN_SETPOINT_FOR_MAX = 18.0; // Minimum setpoint to activate MAX mode (skip in eco/summer)
+const TRANSIENT_ALERT_THRESHOLD = 3; // Consecutive Netatmo outages before /check returns 502 (and the cron caller alerts)
 
 const app = new Hono();
 
@@ -132,14 +134,27 @@ app.get("/check", requireAuth, async (c) => {
     const isTransient = error instanceof TransientApiError;
     const status = isTransient ? 502 : 500;
 
-    await recordCheckError(redis, error, status);
+    // Netatmo 503s are frequent and self-resolving, and the next run retries
+    // anyway. Answer 200 for isolated ones so the cron caller doesn't email (or
+    // auto-disable the job); only a sustained outage surfaces as 502. Every
+    // failure is still recorded, suppressed or not.
+    const streak = isTransient ? await recordTransientFailure(redis) : null;
+    const suppressed = streak !== null && streak < TRANSIENT_ALERT_THRESHOLD;
+
+    await recordCheckError(redis, error, status, suppressed);
+
+    const details = error instanceof Error ? error.message : String(error);
+
+    if (suppressed) {
+      return c.json({ action: "transient_failure", streak, details });
+    }
 
     return c.json(
       {
         error: isTransient
           ? "Netatmo API temporarily unavailable"
           : "Failed to check temperature",
-        details: error instanceof Error ? error.message : String(error),
+        details,
       },
       status
     );

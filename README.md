@@ -104,6 +104,10 @@ Every failed `/check` run is recorded in two places, using only services already
 
 Tracking is best-effort: if Redis is itself unreachable, the original error is still returned to the caller and logged.
 
+### Quiet handling of Netatmo outages
+
+Netatmo's API returns sporadic 503s. An isolated one is harmless — the next run simply tries again — so `/check` answers `200` with `{"action":"transient_failure"}` rather than failing the cron job and triggering an alert email. If the outage persists for 3 consecutive runs, `/check` returns `502` so your cron service notifies you. Suppressed failures are still recorded (with `"suppressed": true`) and visible via `GET /status`.
+
 ## Notifications
 
 If Pushover credentials are configured, you'll receive a push notification when MAX mode is triggered. To set this up:

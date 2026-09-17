@@ -37,7 +37,10 @@ export async function recordCheckSuccess(
 ): Promise<void> {
   try {
     const entry: CheckSuccessRecord = { ...record, at: new Date().toISOString() };
-    await redis.set(REDIS_KEYS.LAST_CHECK, entry);
+    await Promise.all([
+      redis.set(REDIS_KEYS.LAST_CHECK, entry),
+      redis.del(REDIS_KEYS.TRANSIENT_STREAK),
+    ]);
   } catch (trackingError) {
     console.error(
       JSON.stringify({
@@ -46,6 +49,31 @@ export async function recordCheckSuccess(
         error: serializeError(trackingError),
       })
     );
+  }
+}
+
+/**
+ * Count consecutive transient (upstream) failures. Reset by recordCheckSuccess.
+ * Returns null if the count couldn't be stored - callers should treat that as
+ * "don't suppress", so a Redis outage can't hide a Netatmo one.
+ */
+export async function recordTransientFailure(
+  redis: Redis | null
+): Promise<number | null> {
+  if (!redis) {
+    return null;
+  }
+  try {
+    return await redis.incr(REDIS_KEYS.TRANSIENT_STREAK);
+  } catch (trackingError) {
+    console.error(
+      JSON.stringify({
+        event: "tracking_failed",
+        stage: "transient_streak",
+        error: serializeError(trackingError),
+      })
+    );
+    return null;
   }
 }
 
@@ -60,11 +88,13 @@ export async function recordCheckSuccess(
 export async function recordCheckError(
   redis: Redis | null,
   error: unknown,
-  status: number
+  status: number,
+  suppressed = false
 ): Promise<void> {
   const entry: CheckErrorRecord = {
     at: new Date().toISOString(),
     status,
+    ...(suppressed ? { suppressed } : {}),
     ...serializeError(error),
   };
 

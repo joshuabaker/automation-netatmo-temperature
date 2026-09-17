@@ -81,13 +81,21 @@ export class NetatmoClient {
       client_secret: this.config.clientSecret,
     });
 
-    const response = await fetchWithRetry(`${NETATMO_API_BASE}/oauth2/token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+    // Single attempt only. Netatmo rotates the refresh token on use, so if a
+    // request was processed but its response was lost (timeout, 5xx), replaying
+    // it would present an already-spent token. Fail as transient and let the
+    // next cron run try again with whatever is in Redis.
+    const response = await fetchWithRetry(
+      `${NETATMO_API_BASE}/oauth2/token`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
       },
-      body: params.toString(),
-    });
+      { retries: 0 }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();

@@ -37,14 +37,9 @@ export class NetatmoClient {
   }
 
   /**
-   * Get a valid access token, either from cache or by refreshing
+   * Refresh the access token and cache it, replacing anything already stored.
    */
-  private async getAccessToken(): Promise<string> {
-    const cachedToken = await this.redis.get<string>(REDIS_KEYS.ACCESS_TOKEN);
-    if (cachedToken) {
-      return cachedToken;
-    }
-
+  private async fetchAndCacheAccessToken(): Promise<string> {
     const tokenResponse = await this.refreshAccessToken();
 
     await this.redis.set(REDIS_KEYS.ACCESS_TOKEN, tokenResponse.access_token, {
@@ -59,6 +54,18 @@ export class NetatmoClient {
     }
 
     return tokenResponse.access_token;
+  }
+
+  /**
+   * Get a valid access token, either from cache or by refreshing
+   */
+  private async getAccessToken(): Promise<string> {
+    const cachedToken = await this.redis.get<string>(REDIS_KEYS.ACCESS_TOKEN);
+    if (cachedToken) {
+      return cachedToken;
+    }
+
+    return this.fetchAndCacheAccessToken();
   }
 
   /**
@@ -93,18 +100,14 @@ export class NetatmoClient {
   }
 
   /**
-   * Make an authenticated API request
+   * Send a single authenticated request. No token handling - the caller owns that.
    */
-  private async apiRequest<T>(
+  private async sendRequest(
     endpoint: string,
-    options: {
-      method?: "GET" | "POST";
-      params?: Record<string, string>;
-    } = {}
-  ): Promise<T> {
-    const { method = "GET", params = {} } = options;
-    const accessToken = await this.getAccessToken();
-
+    method: "GET" | "POST",
+    params: Record<string, string>,
+    accessToken: string
+  ): Promise<Response> {
     const url = new URL(`${NETATMO_API_BASE}/api${endpoint}`);
 
     if (method === "GET") {
@@ -125,7 +128,44 @@ export class NetatmoClient {
       fetchOptions.body = new URLSearchParams(params).toString();
     }
 
-    const response = await fetchWithRetry(url.toString(), fetchOptions);
+    return fetchWithRetry(url.toString(), fetchOptions);
+  }
+
+  /**
+   * Make an authenticated API request.
+   *
+   * Netatmo can invalidate an access token before its cache TTL lapses (seen in
+   * production: a token minted at ~23:03 was rejected from 23:10 onwards). Because
+   * a 401/403 is below the 5xx threshold, fetchWithRetry passes it straight
+   * through, so without this the stale token was re-read from Redis and replayed
+   * on every run until the ~2h47m TTL expired - turning a one-request problem into
+   * a multi-hour outage. Discard the cached token and retry exactly once.
+   */
+  private async apiRequest<T>(
+    endpoint: string,
+    options: {
+      method?: "GET" | "POST";
+      params?: Record<string, string>;
+    } = {}
+  ): Promise<T> {
+    const { method = "GET", params = {} } = options;
+
+    let response = await this.sendRequest(
+      endpoint,
+      method,
+      params,
+      await this.getAccessToken()
+    );
+
+    if (response.status === 401 || response.status === 403) {
+      await this.redis.del(REDIS_KEYS.ACCESS_TOKEN);
+      response = await this.sendRequest(
+        endpoint,
+        method,
+        params,
+        await this.fetchAndCacheAccessToken()
+      );
+    }
 
     if (!response.ok) {
       const errorText = await response.text();

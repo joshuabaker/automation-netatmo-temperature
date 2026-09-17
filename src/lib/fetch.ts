@@ -15,11 +15,12 @@ function delay(ms: number): Promise<void> {
 
 export async function fetchWithRetry(
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  { retries = MAX_RETRIES }: { retries?: number } = {}
 ): Promise<Response> {
   let lastError: Error | undefined;
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
     if (attempt > 0) {
       await delay(BASE_DELAY_MS * Math.pow(2, attempt - 1));
     }
@@ -44,6 +45,6 @@ export async function fetchWithRetry(
   }
 
   throw new TransientApiError(
-    `All ${MAX_RETRIES + 1} attempts failed: ${lastError?.message}`
+    `All ${retries + 1} attempts failed: ${lastError?.message}`
   );
 }

@@ -73,11 +73,18 @@ Zero-cost, uses only what's already provisioned. On any `/check` failure:
 
 Tracking never throws; every step is isolated so it can't turn a good run into a failure or mask the original error.
 
+### Transient failure suppression
+
+Netatmo returns sporadic 503s (several a day). To keep cron-job.org from emailing on each one (and from auto-disabling the job), `/check` returns **200** with `action: "transient_failure"` for isolated `TransientApiError`s. Only the 3rd consecutive one (`TRANSIENT_ALERT_THRESHOLD`, ~30 min at a 10-minute cron) returns 502. Every failure is still recorded, with `suppressed: true` where a 200 was returned. Non-transient errors always return 500.
+
+The `/oauth2/token` refresh is never retried: refresh tokens rotate on use, so replaying a request whose response was lost would present a spent token.
+
 ## Redis Keys
 
 - `netatmo:access_token` — Cached access token (TTL: ~2.7 hours)
 - `netatmo:refresh_token` — Current refresh token (persisted, auto-rotated)
 - `netatmo:reading` — Last thermostat reading (`{ temp, setpoint }`)
 - `netatmo:last_check` — Last successful check (`{ at, action, temp, setpoint }`)
-- `netatmo:last_error` — Last failed check (`{ at, status, name, message, stack }`)
+- `netatmo:last_error` — Last failed check (`{ at, status, suppressed?, name, message, stack }`)
 - `netatmo:errors` — List of the last 50 failed checks (newest first)
+- `netatmo:transient_streak` — Consecutive transient failures; deleted on any successful check

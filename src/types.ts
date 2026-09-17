@@ -125,7 +125,8 @@ export interface CheckSuccessRecord {
 
 export interface CheckErrorRecord {
   at: string; // ISO timestamp
-  status: number; // HTTP status returned to the caller
+  status: number; // HTTP status the failure maps to (502 transient, 500 otherwise)
+  suppressed?: boolean; // true if a 200 was returned instead, to keep the cron caller quiet
   name: string;
   message: string;
   stack?: string;

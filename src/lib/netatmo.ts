@@ -1,6 +1,6 @@
 import { Redis } from "@upstash/redis";
 import { REDIS_KEYS, ACCESS_TOKEN_TTL } from "./redis.js";
-import { fetchWithRetry } from "./fetch.js";
+import { fetchWithRetry, TransientApiError } from "./fetch.js";
 import type {
   NetatmoTokenResponse,
   NetatmoHomeStatusResponse,
@@ -211,9 +211,18 @@ export class NetatmoClient {
       { method: "GET", params: { home_id: homeId } }
     );
 
-    const room = homeStatus.body.home.rooms[0];
+    // When the relay is offline Netatmo still answers 200 "ok", but drops
+    // rooms/modules from the home and lists the device under body.errors
+    // (code 6 = unreachable). Nothing to act on until it reconnects, so treat it
+    // like any other upstream outage rather than crashing on rooms[0].
+    const room = homeStatus.body.home?.rooms?.[0];
     if (!room) {
-      throw new Error("No rooms found in home");
+      const codes = (homeStatus.body.errors ?? []).map((e) => e.code);
+      throw new TransientApiError(
+        codes.length > 0
+          ? `Netatmo relay unreachable: homestatus returned no rooms (error codes: ${codes.join(", ")})`
+          : "Netatmo homestatus returned no rooms"
+      );
     }
 
     return {
